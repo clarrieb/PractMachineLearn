@@ -1,0 +1,69 @@
+---
+title: "Project Writeup - Practical Machine Learning"
+author: "clarrieb"
+date: "18 February 2015"
+output: html_document
+---
+
+Summary
+---
+
+The purpose of this project is to examine data captured from use of personal fitness devices (e.g jawbone, fitbit etc) during exercise and predict the manner in which participants did their exercise - lifting barbells in correct and 5 different incorrect ways.  Following exploratory data analysis, an optimal prediction model was developed and tested, resulting in a model displaying an accuracy of 99.7%, with high specificity and sensitivity.
+
+Libraries were loaded for later use and seed was set for reproducibility of the analysis.  Data was loaded and assessed for completeness.  Significant tranches of the data were missing.
+
+```{r}
+options(warn=-1)
+library(caret)
+library(randomForest)
+library(Hmisc)
+library(foreach)
+library(doParallel)
+set.seed(4356)
+
+data <- read.csv("/Users/cbaxter/pml-training.csv")
+```
+
+Data was re-loaded, ignoring missing values.  Data was cast as numeric for analysis.
+
+```{r}
+data <- read.csv("/Users/cbaxter/pml-training.csv", na.strings=c("#DIV/0!") )
+```
+```{r}
+cData <- data
+for(i in c(8:ncol(cData)-1)) {cData[,i] = as.numeric(as.character(cData[,i]))}
+```
+```{r}
+featuresnames <- colnames(cData[colSums(is.na(cData)) == 0])[-(1:7)]
+features <- cData[featuresnames]
+```
+
+Spurious/redundant data was removed so as not to bias the analysis - e.g Name, new_window, num_window.  Data was split into training and testing datasets.
+
+A classifier was trained using the training data set, using the doParalell package.  A random forest model was constructed.
+
+The confusionmatrix method was used to elicit accuracy, specificity and sensitivity measures for the model. The model had an accuracy of 99.7 % and high sensitivity and specificity values.
+
+```{r}
+xdata <- createDataPartition(y=features$classe, p=3/4, list=FALSE )
+training <- features[xdata,]
+testing <- features[-xdata,]
+```
+```{r}
+registerDoParallel()
+model <- foreach(ntree=rep(150, 4), .combine=randomForest::combine) %dopar% randomForest(training[-ncol(training)], training$classe, ntree=ntree)
+```
+```{r}
+predictionsTr <- predict(model, newdata=training)
+confusionMatrix(predictionsTr,training$classe)
+```
+```{r}
+predictionsTe <- predict(model, newdata=testing)
+confusionMatrix(predictionsTe,testing$classe)
+```
+
+
+
+
+
+
